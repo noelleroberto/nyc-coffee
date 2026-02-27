@@ -57,6 +57,14 @@ function uid() {
   return String(Date.now()) + Math.random().toString(36).slice(2, 7);
 }
 
+// Remove emoji characters so TTS doesn't read them aloud (e.g. "hot beverage")
+function stripEmoji(text: string): string {
+  return text
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 const GREETING = "Hey there! Welcome to NYC Coffee. What can I get started for you today? ☕";
 
 const INITIAL_MESSAGE: ChatMessage = {
@@ -133,7 +141,7 @@ export default function CustomerPage() {
     window.speechSynthesis.cancel();
     // iOS can enter a paused state (e.g. after backgrounding). Resume before speaking.
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(stripEmoji(text));
     utterance.rate = 1.25; // Quick, conversational NYC barista pace
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => {
