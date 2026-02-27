@@ -57,11 +57,13 @@ function uid() {
   return String(Date.now()) + Math.random().toString(36).slice(2, 7);
 }
 
+const GREETING = "Hey there! Welcome to NYC Coffee. What can I get started for you today? ☕";
+
 const INITIAL_MESSAGE: ChatMessage = {
   id: "init",
   type: "text",
   role: "assistant",
-  content: "Hey there! Welcome to NYC Coffee. What can I get started for you today? ☕",
+  content: GREETING,
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -83,6 +85,8 @@ export default function CustomerPage() {
   const shouldAutoListenRef = useRef(false);
   // Holds the latest startListening fn so speak()'s onend can call it without stale closure
   const startListeningRef = useRef<(() => void) | null>(null);
+  // Guard so we only auto-speak the greeting once
+  const hasSpokenGreeting = useRef(false);
 
   // Auto-scroll on new messages / loading state change
   useEffect(() => {
@@ -137,6 +141,14 @@ export default function CustomerPage() {
     utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
   }, []);
+
+  // Speak the opening greeting once on mount (voice mode only)
+  useEffect(() => {
+    if (hasSpokenGreeting.current) return;
+    hasSpokenGreeting.current = true;
+    // Small delay so the browser speech engine is ready
+    setTimeout(() => speak(GREETING), 400);
+  }, [speak]);
 
   // ── Save confirmed order to Supabase ───────────────────────────────────
   const saveOrder = async (orderData: {
@@ -476,7 +488,7 @@ export default function CustomerPage() {
                 placeholder="Type your order…"
                 disabled={isLoading}
                 autoComplete="off"
-                className="flex-1 px-4 py-2.5 rounded-full border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200 focus:bg-white disabled:opacity-50 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-full border border-gray-200 bg-gray-50 text-base md:text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200 focus:bg-white disabled:opacity-50 transition-colors"
               />
               <button
                 onClick={() => sendMessage(input)}
