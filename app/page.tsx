@@ -97,6 +97,9 @@ export default function CustomerPage() {
   const hasSpokenGreeting = useRef(false);
   // Flips to true inside utterance.onstart — stays false if iOS silently blocked the speak()
   const greetingPlayedRef = useRef(false);
+  // Flips to true when the current recognition session captures a result.
+  // Used in onend to decide whether to auto-restart (no result = retry silently).
+  const recognitionHadResultRef = useRef(false);
   // iOS requires speech synthesis to be triggered from a direct user gesture.
   // This ref tracks whether we've done the one-time unlock.
   const audioUnlockedRef = useRef(false);
@@ -148,9 +151,11 @@ export default function CustomerPage() {
     utterance.onstart = () => { setIsSpeaking(true); onStarted?.(); };
     utterance.onend = () => {
       setIsSpeaking(false);
-      // Auto-restart listening so the customer doesn't have to tap the mic again
+      // Auto-restart listening so the customer doesn't have to tap the mic again.
+      // 700ms gives the microphone time to settle after TTS audio ends (avoids
+      // the AI's own voice echo being picked up as the next utterance).
       if (shouldAutoListenRef.current) {
-        setTimeout(() => startListeningRef.current?.(), 400);
+        setTimeout(() => startListeningRef.current?.(), 700);
       }
     };
     utterance.onerror = () => setIsSpeaking(false);
@@ -319,19 +324,40 @@ export default function CustomerPage() {
     recognition.interimResults = false;
     recognition.lang = "en-US";
 
+    // Reset per-session result flag
+    recognitionHadResultRef.current = false;
+    // Local flag set by onerror to block auto-restart on unrecoverable errors
+    let fatalError = false;
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      recognitionHadResultRef.current = true;
       const transcript = event.results[0][0].transcript;
       sendMessage(transcript);
     };
-    recognition.onend = () => setIsListening(false);
+
+    recognition.onend = () => {
+      setIsListening(false);
+      // If we didn't catch anything this session and there's no fatal error,
+      // silently restart so the user doesn't have to tap the mic again.
+      // This covers no-speech timeouts, brief glitches, and mic drop-outs.
+      if (!recognitionHadResultRef.current && !fatalError && shouldAutoListenRef.current) {
+        setTimeout(() => startListeningRef.current?.(), 350);
+      }
+    };
+
     recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         setMicError("Mic access blocked. Tap the 🔒 in your browser's address bar, allow microphone, then refresh.");
+        fatalError = true;
       } else if (e.error === "audio-capture") {
         setMicError("No microphone detected. Please connect one and try again.");
-      } else if (e.error !== "no-speech") {
+        fatalError = true;
+      } else if (e.error === "no-speech") {
+        // Completely normal — user paused or hadn't started speaking yet.
+        // onend will auto-restart, no need to show anything.
+      } else {
+        // Transient errors (network, aborted, etc.) — log but don't block restart.
         console.error("Speech recognition error:", e.error);
-        setMicError(`Voice error: ${e.error}. Try switching to Text mode.`);
       }
       setIsListening(false);
     };
