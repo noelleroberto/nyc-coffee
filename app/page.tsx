@@ -87,6 +87,9 @@ export default function CustomerPage() {
   const startListeningRef = useRef<(() => void) | null>(null);
   // Guard so we only auto-speak the greeting once
   const hasSpokenGreeting = useRef(false);
+  // iOS requires speech synthesis to be triggered from a direct user gesture.
+  // This ref tracks whether we've done the one-time unlock.
+  const audioUnlockedRef = useRef(false);
 
   // Auto-scroll on new messages / loading state change
   useEffect(() => {
@@ -128,8 +131,10 @@ export default function CustomerPage() {
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+    // iOS can enter a paused state (e.g. after backgrounding). Resume before speaking.
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05;
+    utterance.rate = 1.25; // Quick, conversational NYC barista pace
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => {
       setIsSpeaking(false);
@@ -336,6 +341,17 @@ export default function CustomerPage() {
       setIsListening(false);
       return;
     }
+
+    // iOS blocks speechSynthesis.speak() outside a direct user gesture.
+    // On the very first tap, queue a zero-volume silent utterance to activate
+    // the audio context. All subsequent async speak() calls will then work.
+    if (!audioUnlockedRef.current && typeof window !== "undefined" && window.speechSynthesis) {
+      audioUnlockedRef.current = true;
+      const unlock = new SpeechSynthesisUtterance("");
+      unlock.volume = 0;
+      window.speechSynthesis.speak(unlock);
+    }
+
     startListening();
   }, [isListening, startListening]);
 

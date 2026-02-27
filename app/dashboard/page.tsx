@@ -360,18 +360,18 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] bg-gray-50 p-6">
+    <div className="min-h-[calc(100vh-3.5rem)] bg-gray-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-stone-900">Dashboard</h1>
             <p className="text-stone-500 text-sm mt-1">
               Business performance overview
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
 
             {/* P/P vs Y/Y toggle */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
@@ -434,7 +434,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
               {/* AOV */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
                 <p className="text-sm text-stone-500 font-medium">
                   Avg Order Value
                 </p>
@@ -470,7 +470,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Avg Fulfillment Time */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
                 <p className="text-sm text-stone-500 font-medium">
                   Avg Fulfillment Time
                 </p>
@@ -492,7 +492,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Cancellation Rate — not tracked yet */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
                 <p className="text-sm text-stone-500 font-medium">
                   Cancellation Rate
                 </p>
@@ -501,7 +501,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Remake Rate — not tracked yet */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
                 <p className="text-sm text-stone-500 font-medium">
                   Remake Rate
                 </p>
@@ -530,7 +530,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
-              <div className="h-56">
+              <div className="h-44 sm:h-56">
                 {trendData.some((d) => d.revenue > 0 || d.orders > 0) ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
@@ -601,14 +601,14 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Row 3: Top 5 by Revenue + Orders by Hour ── */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
               {/* Top 5 Items by Revenue */}
               <div className="bg-white rounded-xl border border-gray-200 p-5">
                 <h3 className="text-sm font-semibold text-stone-700 mb-4">
                   Top 5 Items by Revenue
                 </h3>
-                <div className="h-52">
+                <div className="h-44 md:h-52">
                   {top5.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -696,7 +696,7 @@ export default function DashboardPage() {
                     ({peak} orders)
                   </p>
                 )}
-                <div className="h-52">
+                <div className="h-44 md:h-52">
                   {hourData.some((d) => d.orders > 0) ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -751,24 +751,24 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Row 4: Add-On Attach Rate ── */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-start gap-10">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row items-start gap-5 sm:gap-10">
                 {/* Attach rate KPI */}
-                <div className="shrink-0 min-w-[140px]">
+                <div className="shrink-0 w-full sm:w-auto sm:min-w-[140px]">
                   <p className="text-sm text-stone-500 font-medium mb-1">
                     Add-On Attach Rate
                   </p>
-                  <p className="text-5xl font-bold text-stone-900">
+                  <p className="text-4xl sm:text-5xl font-bold text-stone-900">
                     {done.length > 0 ? `${attachRate}%` : "—"}
                   </p>
                   <p className="text-xs text-stone-400 mt-2 leading-snug">
-                    of orders include
-                    <br />a paid add-on
+                    of orders include a paid add-on
                   </p>
                 </div>
 
-                {/* Divider */}
-                <div className="w-px self-stretch bg-gray-100 shrink-0" />
+                {/* Divider — vertical on desktop, horizontal on mobile */}
+                <div className="hidden sm:block w-px self-stretch bg-gray-100 shrink-0" />
+                <div className="sm:hidden w-full h-px bg-gray-100" />
 
                 {/* Top paid add-ons ranked list */}
                 <div className="flex-1">
