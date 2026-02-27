@@ -93,8 +93,10 @@ export default function CustomerPage() {
   const shouldAutoListenRef = useRef(false);
   // Holds the latest startListening fn so speak()'s onend can call it without stale closure
   const startListeningRef = useRef<(() => void) | null>(null);
-  // Guard so we only auto-speak the greeting once
+  // Guard so we only attempt to auto-speak the greeting once
   const hasSpokenGreeting = useRef(false);
+  // Flips to true inside utterance.onstart — stays false if iOS silently blocked the speak()
+  const greetingPlayedRef = useRef(false);
   // iOS requires speech synthesis to be triggered from a direct user gesture.
   // This ref tracks whether we've done the one-time unlock.
   const audioUnlockedRef = useRef(false);
@@ -136,14 +138,14 @@ export default function CustomerPage() {
   );
 
   // ── TTS ────────────────────────────────────────────────────────────────
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, onStarted?: () => void) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     // iOS can enter a paused state (e.g. after backgrounding). Resume before speaking.
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     const utterance = new SpeechSynthesisUtterance(stripEmoji(text));
     utterance.rate = 1.25; // Quick, conversational NYC barista pace
-    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onstart = () => { setIsSpeaking(true); onStarted?.(); };
     utterance.onend = () => {
       setIsSpeaking(false);
       // Auto-restart listening so the customer doesn't have to tap the mic again
@@ -155,12 +157,14 @@ export default function CustomerPage() {
     window.speechSynthesis.speak(utterance);
   }, []);
 
-  // Speak the opening greeting once on mount (voice mode only)
+  // Speak the opening greeting once on mount (works on desktop; iOS will silently block it)
   useEffect(() => {
     if (hasSpokenGreeting.current) return;
     hasSpokenGreeting.current = true;
-    // Small delay so the browser speech engine is ready
-    setTimeout(() => speak(GREETING), 400);
+    setTimeout(
+      () => speak(GREETING, () => { greetingPlayedRef.current = true; }),
+      400
+    );
   }, [speak]);
 
   // ── Save confirmed order to Supabase ───────────────────────────────────
@@ -351,17 +355,27 @@ export default function CustomerPage() {
     }
 
     // iOS blocks speechSynthesis.speak() outside a direct user gesture.
-    // On the very first tap, queue a zero-volume silent utterance to activate
-    // the audio context. All subsequent async speak() calls will then work.
+    // On the very first mic tap we activate the audio context.
     if (!audioUnlockedRef.current && typeof window !== "undefined" && window.speechSynthesis) {
       audioUnlockedRef.current = true;
+
+      if (!greetingPlayedRef.current) {
+        // iOS silently blocked the auto-speak on mount. Replay the greeting NOW
+        // from this user-gesture context — that's what unlocks iOS audio — then
+        // let speak()'s onend chain into startListening automatically.
+        speak(GREETING, () => { greetingPlayedRef.current = true; });
+        return;
+      }
+
+      // Greeting already played (desktop path). Play a silent utterance to
+      // ensure the audio context stays warm for async speak() calls.
       const unlock = new SpeechSynthesisUtterance("");
       unlock.volume = 0;
       window.speechSynthesis.speak(unlock);
     }
 
     startListening();
-  }, [isListening, startListening]);
+  }, [isListening, startListening, speak]);
 
   // ── Mode toggle ───────────────────────────────────────────────────────
   const switchMode = useCallback(
